@@ -39,37 +39,19 @@
 
 
     const source = new carto.source.SQL(`SELECT
-            a.*,
-            b.top_corner_score,
-            b.rent_score,
-            b.vacancy_score,
-            b.walk_score,
-            b.transit_score,
-            b.location_score,
-            b.missing_values
-
-
+            a.*, b.top_corner_score, b.rent_score, b.vacancy_score, b.walk_score,
+            b.transit_score, b.location_score,b.missing_values
             FROM cynthiawong.prod_nyopenlocations_space_metrics_mv_bom_eom_occ_cap_2019_03_2 a
-
-
-            LEFT JOIN
-            cynthiawong.prod_wework_open_locations b
-            ON
-            b.the_geom = a.the_geom
-            OR
-            b.location_name = a.location_location_name
-            AND
-            b.city = a.location_city
-
-            WHERE a.location_month___since_opening>= ('18')
-
+            LEFT JOIN cynthiawong.prod_wework_open_locations b
+            ON b.the_geom = a.the_geom
+            OR b.location_name = a.location_location_name
+            AND b.city = a.location_city
             ORDER BY location_score ASC
     `);
 
 
     const viz = new carto.Viz(`
         @v_features: viewportFeatures($capacity_capacity_desks)
-
         width: ramp($capacity_capacity_desks, [10, 45])
         color: ramp($location_current_location_occupancy,[#FDE877, #FCDD3B, #ffd605])
         strokeColor: opacity(white, 0.2)
