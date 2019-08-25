@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Exported map | CARTO VL</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8">
+<script src="http://libs.cartocdn.com/carto-vl/v1.2.3/carto-vl.js"></script>
+<script src="https://api.tiles.mapbox.com/mapbox-gl-js/v0.52.0/mapbox-gl.js"></script>
+<link href="https://api.tiles.mapbox.com/mapbox-gl-js/v0.52.0/mapbox-gl.css" rel="stylesheet" />
+<style>
+    html, body {
+        margin: 0;
+    }
+    #map {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+    }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+    const map = new mapboxgl.Map({
+        container: 'map',
+        style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+        center: [-73.96853489598652, 40.74516961511716],
+        zoom: 12.380443644785469
+    });
+
+    carto.setDefaultConfig({
+        serverURL: 'https://cynthiawong.carto.com'
+    });
+
+    carto.setDefaultAuth({
+        username: 'cynthia.wong',
+        apiKey: 'default_public'
+    });
+
+
+    const source = new carto.source.SQL(`SELECT
+            a.*,
+            b.top_corner_score,
+            b.rent_score,
+            b.vacancy_score,
+            b.walk_score,
+            b.transit_score,
+            b.location_score,
+            b.missing_values
+
+
+            FROM cynthiawong.prod_nyopenlocations_space_metrics_mv_bom_eom_occ_cap_2019_03_2 a
+
+
+            LEFT JOIN
+            cynthiawong.prod_wework_open_locations b
+            ON
+            b.the_geom = a.the_geom
+            OR
+            b.location_name = a.location_location_name
+            AND
+            b.city = a.location_city
+
+            WHERE a.location_month___since_opening>= ('18')
+
+            ORDER BY location_score ASC
+    `);
+
+
+    const viz = new carto.Viz(`
+        @v_features: viewportFeatures($capacity_capacity_desks)
+
+        width: ramp($capacity_capacity_desks, [10, 45])
+        color: ramp($location_current_location_occupancy,[#FDE877, #FCDD3B, #ffd605])
+        strokeColor: opacity(white, 0.2)
+        filter: zoom()>9 or $capacity_capacity_desks>10000
+    `);
+
+    const layer = new carto.Layer('layer', source, viz);
+
+    // Create labeling layer centroids
+    layer.on('loaded', () => {
+      map.addSource('labels', { type: 'geojson', data: null });
+      const labelSource = map.getSource('labels');
+
+      const layerUpdated = function () {
+        const features = viz.variables.v_features.value;
+        const geojsonFeatures = features.map(feature => {
+          return {
+            "type": "Feature",
+            "geometry": {
+              "type": "Point",
+              "coordinates": feature.getRenderedCentroid()
+            },
+            "properties": {
+              "label_field": `${feature.properties['capacity_capacity_desks']}`,
+            }
+          }
+        });
+
+        labelSource.setData({
+          type: 'FeatureCollection',
+          features: geojsonFeatures
+        });
+      };
+
+      layer.on('updated', layerUpdated);
+
+      // Style labels
+      map.addLayer({
+        "id": "my-labels",
+        "type": "symbol",
+        "source": "labels",
+        "layout": {
+          "text-field": "{label_field}",
+          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+          "text-size": 10,
+          "text-offset": [0, 0.65],
+          "text-anchor": "top",
+          "text-max-width": 8,
+          "text-justify": "center"
+        },
+        "paint": {
+          "text-color": "white",
+          "text-halo-color": "fuchsia",
+          "text-halo-width": 0.5,
+          "text-halo-blur": 0.5
+        }
+      });
+    });
+
+    layer.addTo(map, 'watername_ocean');
+</script>
+</body>
+</html>
